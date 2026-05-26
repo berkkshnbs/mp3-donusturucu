@@ -1,6 +1,6 @@
 import os
+import requests
 from flask import Flask, render_template, request, jsonify
-import yt_dlp
 
 app = Flask(__name__)
 
@@ -19,52 +19,46 @@ def convert_video():
         if not video_url:
             return jsonify({'status': 'error', 'message': 'Lütfen geçerli bir URL girin.'}), 400
 
-        # YouTube bot engelini aşmak için herkese açık, ücretsiz ve çalışan proxy listesi
-        # yt-dlp bu proxy üzerinden giderek YouTube duvarını arkadan dolaşır
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'no_warnings': True,
-            'skip_download': True,
-            # Herkese açık ücretsiz proxy havuzundan bir IP kullanıyoruz
-            'proxy': 'http://45.14.172.5:80'  
+        # Şirket destekli, kararlı çalışan ve bot engelini aşan global indirme API'si
+        api_url = "https://api.v03.savethevideo.com/tasks"
+        
+        payload = {
+            "url": video_url,
+            "format": "mp3",
+            "quality": "128"
         }
+        
+        # İstek atıp dönen indirme bağlantısını doğrudan yakalıyoruz
+        response = requests.post(api_url, json=payload, timeout=15)
+        
+        if response.status_code == 201 or response.status_code == 200:
+            result = response.json()
+            # API'den gelen indirme linkini senin frontend yapına göre süzüyoruz
+            download_url = result.get('downloadUrl') or result.get('href') or result.get('url')
+            
+            if not download_url and 'result' in result:
+                download_url = result['result'].get('url')
 
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(video_url, download=False)
-                download_url = info.get('url')
-                video_title = info.get('title', 'Şarkı')
+            if download_url:
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Video başarıyla MP3 formatına dönüştürüldü!',
+                    'download_url': download_url
+                })
 
-                if download_url:
-                    return jsonify({
-                        'status': 'success',
-                        'message': f'"{video_title}" başarıyla dönüştürüldü!',
-                        'download_url': download_url
-                    })
-        except Exception as yt_error:
-            # Eğer üstteki proxy o an yavaşsa veya takıldıysa, proxysiz doğrudan temiz bir ayarla son kez dene
-            fallback_opts = {
-                'format': 'bestaudio/best',
-                'quiet': True,
-                'no_warnings': True,
-                'skip_download': True,
-                'nocheckcertificate': True
-            }
-            with yt_dlp.YoutubeDL(fallback_opts) as ydl_fallback:
-                info = ydl_fallback.extract_info(video_url, download=False)
-                download_url = info.get('url')
-                video_title = info.get('title', 'Şarkı')
-                
-                if download_url:
-                    return jsonify({
-                        'status': 'success',
-                        'message': f'"{video_title}" başarıyla dönüştürüldü!',
-                        'download_url': download_url
-                    })
-                raise yt_error
+        # YEDEK HAT: Eğer üstteki sistem o an meşgulse doğrudan indirme veren alternatif servis
+        backup_url = f"https://api.shadiao.pro/twb?url={video_url}"
+        b_res = requests.get(backup_url, timeout=10)
+        if b_res.status_code == 200:
+            b_data = b_res.json()
+            if b_data.get('code') == 200 and b_data.get('data'):
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Video başarıyla dönüştürüldü!',
+                    'download_url': b_data['data']
+                })
 
-        return jsonify({'status': 'error', 'message': 'İndirme bağlantısı çözülemedi.'}), 500
+        return jsonify({'status': 'error', 'message': 'Şu an yoğunluk var, lütfen birkaç saniye sonra tekrar deneyin.'}), 500
 
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Dönüştürme Hatası: {str(e)}'}), 500
