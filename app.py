@@ -1,6 +1,6 @@
 import os
-import requests
 from flask import Flask, render_template, request, jsonify
+import yt_dlp
 
 app = Flask(__name__)
 
@@ -16,50 +16,34 @@ def convert_video():
     if not video_url:
         return jsonify({'status': 'error', 'message': 'Lütfen geçerli bir URL girin.'}), 400
 
-    api_url = "https://all-in-one-downloader.p.rapidapi.com/v1/social/autolink"
-    
-    headers = {
-        "x-rapidapi-key": "6ca3161c77msh699042b44ec6576p170884jsn332da1e793cb",
-        "x-rapidapi-host": "all-in-one-downloader.p.rapidapi.com",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "url": video_url
+    # Kendi sunucumuzda çalışacak yt-dlp ayarları (En yüksek kalitede sesi bulur)
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'quiet': True,
+        'no_warnings': True,
+        'skip_download': True,  # Videoyu sunucuya indirip alanı doldurmuyoruz, sadece direkt linki çözüyoruz
     }
 
     try:
-        response = requests.post(api_url, json=payload, headers=headers, timeout=15)
-        result = response.json()
-        
-        if response.status_code == 200 and 'links' in result and len(result['links']) > 0:
-            mp3_link = None
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Video bilgilerini YouTube'dan çekiyoruz
+            info = ydl.extract_info(video_url, download=False)
             
-            # 1. Aşama: Gerçekten ses/mp3 olan bir link var mı diye agresif bir arama yapıyoruz
-            for link in result['links']:
-                link_type = str(link.get('type', '')).lower()
-                link_format = str(link.get('format', '')).lower()
-                
-                if 'audio' in link_type or 'mp3' in link_format or 'm4a' in link_format:
-                    mp3_link = link.get('url')
-                    break
-            
-            # 2. Aşama: Eğer ses bulamadıysa, inat etme! API'nin bulduğu EN İLK indirme linkini ver (Video bile olsa indirsin)
-            if not mp3_link:
-                mp3_link = result['links'][0].get('url')
+            # Doğrudan YouTube sunucularından gelen ham ses/indirme linkini alıyoruz
+            download_url = info.get('url')
+            video_title = info.get('title', 'Şarkı')
 
-            if mp3_link:
-                video_title = result.get('title', 'Başarılı')
+            if download_url:
                 return jsonify({
                     'status': 'success',
-                    'message': f'"{video_title}" bağlantısı hazırlandı!',
-                    'download_url': mp3_link
+                    'message': f'"{video_title}" başarıyla dönüştürüldü!',
+                    'download_url': download_url
                 })
-            
-        return jsonify({'status': 'error', 'message': 'API bu video için hiçbir indirme bağlantısı üretemedi.'}), 500
+            else:
+                return jsonify({'status': 'error', 'message': 'Youtubedan indirme bağlantısı alınamadı.'}), 500
 
     except Exception as e:
-        return jsonify({'status': 'error', 'message': f'Sunucu hatası: {str(e)}'}), 500
+        return jsonify({'status': 'error', 'message': f'Dönüştürme Hatası: {str(e)}'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
