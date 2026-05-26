@@ -1,0 +1,14 @@
+Plaintext
+Flask==3.0.3
+requests==2.32.3
+gunicorn==22.0.0
+   *(Not: `gunicorn`, sitemizin internette hızlı ve çökmeden çalışmasını sağlayan profesyonel bir Python sunucusudur.)*
+
+### B) `app.py` Dosyasında Küçük Bir Güncelleme
+Dosyanın en altındaki `if __name__ == '__main__':` kısmını internet ortamına uyumlu hale getirelim. `app.py` dosyanın en altındaki o kısmı şu şekilde güncelle:
+
+```python
+if __name__ == '__main__':
+    # Render portu otomatik atar, localde ise 5000 portunda çalışır
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)

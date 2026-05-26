@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Süper MP3 Dönüştürücü</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #121214; color: #e1e1e6; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .container { background-color: #202024; padding: 40px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); width: 100%; max-width: 500px; text-align: center; }
+        h1 { color: #00adb5; margin-bottom: 10px; font-size: 28px; }
+        p { color: #87868b; margin-bottom: 25px; font-size: 14px; }
+        input[type="text"] { width: 100%; padding: 14px; border: 2px solid #29292e; border-radius: 6px; background-color: #121214; color: #fff; font-size: 16px; outline: none; margin-bottom: 20px; }
+        input[type="text"]:focus { border-color: #00adb5; }
+        button { width: 100%; padding: 14px; background-color: #00adb5; color: #fff; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #00848a; }
+        button:disabled { background-color: #444; cursor: not-allowed; }
+        #result { margin-top: 20px; padding: 15px; border-radius: 6px; font-size: 14px; display: none; }
+        .success { background-color: #123c24; color: #04d361; }
+        .error { background-color: #4a1c1c; color: #f75a68; }
+        .loading { color: #00adb5; font-style: italic; }
+        .download-btn { display: inline-block; margin-top: 10px; padding: 10px 20px; background-color: #04d361; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold; }
+        .download-btn:hover { background-color: #029f47; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>MP3 Dönüştürücü</h1>
+    <p>Harici API Destekli, Güvenli ve Hızlı Dönüştürme.</p>
+    
+    <input type="text" id="urlInput" placeholder="https://www.youtube.com/watch?v=...">
+    <button id="convertBtn" onclick="startConversion()">Dönüştür</button>
+    
+    <div id="result"></div>
+</div>
+
+<script>
+    async function startConversion() {
+        const urlInput = document.getElementById('urlInput').value;
+        const convertBtn = document.getElementById('convertBtn');
+        const resultDiv = document.getElementById('result');
+        
+        if(!urlInput) {
+            showResult('Lütfen bir link yapıştırın!', 'error');
+            return;
+        }
+        
+        convertBtn.disabled = true;
+        showResult('İşlem başlatıldı, harici servis üzerinden dönüştürülüyor... Lütfen bekleyin.', 'loading');
+        
+        try {
+            const response = await fetch('/convert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: urlInput })
+            });
+            
+            const data = await response.json();
+            
+            if(data.status === 'success') {
+                // Başarılıysa indirme butonunu gösteriyoruz
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'success';
+                resultDiv.innerHTML = `
+                    <p style="color:#04d361; margin-bottom:10px;">${data.message}</p>
+                    <a href="${data.download_url}" target="_blank" class="download-btn">🎵 MP3 Dosyasını İndir</a>
+                `;
+                document.getElementById('urlInput').value = '';
+            } else {
+                showResult(data.message, 'error');
+            }
+        } catch (error) {
+            showResult('Sistemle iletişim kurulurken bir hata oluştu.', 'error');
+        } finally {
+            convertBtn.disabled = false;
+        }
+    }
+
+    function showResult(text, type) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.className = type;
+        resultDiv.innerText = text;
+    }
+</script>
+
+</body>
+</html>
