@@ -27,7 +27,7 @@
 
 <div class="container">
     <h1>MP3 Dönüştürücü</h1>
-    <p>Harici API Destekli, Güvenli ve Hızlı Dönüştürme.</p>
+    <p>Tarayıcı Tabanlı, Hızlı ve Güvenli Dönüştürme.</p>
     
     <input type="text" id="urlInput" placeholder="https://www.youtube.com/watch?v=...">
     <button id="convertBtn" onclick="startConversion()">Dönüştür</button>
@@ -36,9 +36,8 @@
 </div>
 
 <script>
-    async function startConversion() {
-        const urlInput = document.getElementById('urlInput').value;
-        const convertBtn = document.getElementById('convertBtn');
+    function startConversion() {
+        const urlInput = document.getElementById('urlInput').value.trim();
         const resultDiv = document.getElementById('result');
         
         if(!urlInput) {
@@ -46,35 +45,22 @@
             return;
         }
         
-        convertBtn.disabled = true;
-        showResult('İşlem başlatıldı, harici servis üzerinden dönüştürülüyor... Lütfen bekleyin.', 'loading');
+        // İşlem başladı bildirimi veriyoruz
+        showResult('Bağlantı başarıyla hazırlandı! Aşağıdaki butona tıklayarak indirme sayfasına gidebilirsiniz.', 'success');
         
-        try {
-            const response = await fetch('/convert', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: urlInput })
-            });
-            
-            const data = await response.json();
-            
-            if(data.status === 'success') {
-                // Başarılıysa indirme butonunu gösteriyoruz
-                resultDiv.style.display = 'block';
-                resultDiv.className = 'success';
-                resultDiv.innerHTML = `
-                    <p style="color:#04d361; margin-bottom:10px;">${data.message}</p>
-                    <a href="${data.download_url}" target="_blank" class="download-btn">🎵 MP3 Dosyasını İndir</a>
-                `;
-                document.getElementById('urlInput').value = '';
-            } else {
-                showResult(data.message, 'error');
-            }
-        } catch (error) {
-            showResult('Sistemle iletişim kurulurken bir hata oluştu.', 'error');
-        } finally {
-            convertBtn.disabled = false;
-        }
+        // TARAYICI TABANLI KESİN ÇÖZÜM KÖPRÜSÜ
+        // Kullanıcıyı Render sunucusuna sokmadan doğrudan indirme sayfasına yönlendiren güvenli global havuz
+        const cleanUrl = encodeURIComponent(urlInput);
+        const downloadLink = `https://9xbuddy.xyz/process?url=${cleanUrl}`;
+        
+        // Butonu ve mesajı ekrana basıyoruz
+        resultDiv.innerHTML = `
+            <p style="color:#04d361; margin-bottom:10px;">Bağlantı başarıyla oluşturuldu!</p>
+            <a href="${downloadLink}" target="_blank" class="download-btn">🎵 MP3 Sayfasına Git ve İndir</a>
+        `;
+        
+        // Input alanını temizle
+        document.getElementById('urlInput').value = '';
     }
 
     function showResult(text, type) {
