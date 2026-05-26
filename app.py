@@ -10,26 +10,25 @@ def index():
 
 @app.route('/convert', methods=['POST'])
 def convert_video():
-    data = request.get_json()
-    video_url = data.get('url')
-    
-    if not video_url:
-        return jsonify({'status': 'error', 'message': 'Lütfen geçerli bir URL girin.'}), 400
-
-    # Kendi sunucumuzda çalışacak yt-dlp ayarları (En yüksek kalitede sesi bulur)
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'quiet': True,
-        'no_warnings': True,
-        'skip_download': True,  # Videoyu sunucuya indirip alanı doldurmuyoruz, sadece direkt linki çözüyoruz
-    }
-
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Video bilgilerini YouTube'dan çekiyoruz
-            info = ydl.extract_info(video_url, download=False)
+        data = request.get_json()
+        if not data:
+            return jsonify({'status': 'error', 'message': 'Veri alınamadı.'}), 400
             
-            # Doğrudan YouTube sunucularından gelen ham ses/indirme linkini alıyoruz
+        video_url = data.get('url')
+        if not video_url:
+            return jsonify({'status': 'error', 'message': 'Lütfen geçerli bir URL girin.'}), 400
+
+        # En kararlı sunucu ayarları
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(video_url, download=False)
             download_url = info.get('url')
             video_title = info.get('title', 'Şarkı')
 
@@ -40,7 +39,7 @@ def convert_video():
                     'download_url': download_url
                 })
             else:
-                return jsonify({'status': 'error', 'message': 'Youtubedan indirme bağlantısı alınamadı.'}), 500
+                return jsonify({'status': 'error', 'message': 'İndirme bağlantısı çözülemedi.'}), 500
 
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Dönüştürme Hatası: {str(e)}'}), 500
