@@ -1,3 +1,2 @@
-Flask==3.0.2
-requests==2.31.0
-yt-dlp==2025.2.21
+Flask
+yt-dlp
