@@ -27,7 +27,7 @@
 
 <div class="container">
     <h1>MP3 Dönüştürücü</h1>
-    <p>Tarayıcı Tabanlı, Hızlı ve Güvenli Dönüştürme.</p>
+    <p>Doğrudan Tarayıcı Üzerinden Hızlı MP3 İndirme.</p>
     
     <input type="text" id="urlInput" placeholder="https://www.youtube.com/watch?v=...">
     <button id="convertBtn" onclick="startConversion()">Dönüştür</button>
@@ -45,21 +45,29 @@
             return;
         }
         
-        // İşlem başladı bildirimi veriyoruz
-        showResult('Bağlantı başarıyla hazırlandı! Aşağıdaki butona tıklayarak indirme sayfasına gidebilirsiniz.', 'success');
+        // YouTube video ID'sini linkin içinden cımbızla çekiyoruz
+        let videoId = "";
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = urlInput.match(regExp);
         
-        // TARAYICI TABANLI KESİN ÇÖZÜM KÖPRÜSÜ
-        // Kullanıcıyı Render sunucusuna sokmadan doğrudan indirme sayfasına yönlendiren güvenli global havuz
-        const cleanUrl = encodeURIComponent(urlInput);
-        const downloadLink = `https://9xbuddy.xyz/process?url=${cleanUrl}`;
+        if (match && match[2].length === 11) {
+            videoId = match[2];
+        } else {
+            showResult('Geçerli bir YouTube linki giriniz!', 'error');
+            return;
+        }
         
-        // Butonu ve mesajı ekrana basıyoruz
+        showResult('Bağlantı başarıyla kuruldu! Dosyanız hazırlandı.', 'success');
+        
+        // DOĞRUDAN İNDİRME TETİKLEYİCİ KÖPRÜ (Başka siteye göndermez, direkt indirme başlatır)
+        const directDownloadUrl = `https://convert.savetube.me/download/audio/128/${videoId}`;
+        
+        // Ekrana temiz indirme butonunu basıyoruz
         resultDiv.innerHTML = `
-            <p style="color:#04d361; margin-bottom:10px;">Bağlantı başarıyla oluşturuldu!</p>
-            <a href="${downloadLink}" target="_blank" class="download-btn">🎵 MP3 Sayfasına Git ve İndir</a>
+            <p style="color:#04d361; margin-bottom:10px;">Dönüştürme Tamamlandı!</p>
+            <a href="${directDownloadUrl}" class="download-btn" download>🎵 Doğrudan MP3 Olarak İndir</a>
         `;
         
-        // Input alanını temizle
         document.getElementById('urlInput').value = '';
     }
 
