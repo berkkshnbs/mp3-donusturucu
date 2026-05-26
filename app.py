@@ -1,6 +1,6 @@
 import os
-import requests
 from flask import Flask, render_template, request, jsonify
+import yt_dlp
 
 app = Flask(__name__)
 
@@ -19,50 +19,52 @@ def convert_video():
         if not video_url:
             return jsonify({'status': 'error', 'message': 'Lütfen geçerli bir URL girin.'}), 400
 
-        # D PLANIDAKİ GİZLİ KÖPRÜ: Bot engeline takılmayan alternatif API
-        # Bu API doğrudan indirme linkini hazırlar
-        api_url = f"https://api.deveb.co/youtube/info?url={video_url}"
-        
-        response = requests.get(api_url, timeout=15)
-        
-        if response.status_code == 200:
-            result = response.json()
-            
-            # API'den gelen ses (audio) formatlarını kontrol ediyoruz
-            formats = result.get('info', {}).get('formats', [])
-            mp3_link = None
-            
-            # Önce sadece ses olan (audioonly) en kaliteli linki arayalım
-            for f in formats:
-                if f.get('audioWithoutVideo') == True or 'audio' in str(f.get('mimeType', '')):
-                    mp3_link = f.get('url')
-                    break
-            
-            # Eğer özel ses bulamazsa, ilk çalışan indirme linkini yakala
-            if not mp3_link and len(formats) > 0:
-                mp3_link = formats[0].get('url')
+        # YouTube bot engelini aşmak için herkese açık, ücretsiz ve çalışan proxy listesi
+        # yt-dlp bu proxy üzerinden giderek YouTube duvarını arkadan dolaşır
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            # Herkese açık ücretsiz proxy havuzundan bir IP kullanıyoruz
+            'proxy': 'http://45.14.172.5:80'  
+        }
 
-            if mp3_link:
-                video_title = result.get('info', {}).get('title', 'Şarkı')
-                return jsonify({
-                    'status': 'success',
-                    'message': f'"{video_title}" başarıyla dönüştürüldü!',
-                    'download_url': mp3_link
-                })
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(video_url, download=False)
+                download_url = info.get('url')
+                video_title = info.get('title', 'Şarkı')
 
-        # Eğer ilk köprü o an yanıt vermezse, doğrudan çalışan 2. yedek API hattı
-        backup_url = f"https://api.dveb.xyz/api/yt?url={video_url}"
-        backup_res = requests.get(backup_url, timeout=15)
-        if backup_res.status_code == 200:
-            b_result = backup_res.json()
-            if 'url' in b_result:
-                return jsonify({
-                    'status': 'success',
-                    'message': 'Video başarıyla dönüştürüldü!',
-                    'download_url': b_result['url']
-                })
+                if download_url:
+                    return jsonify({
+                        'status': 'success',
+                        'message': f'"{video_title}" başarıyla dönüştürüldü!',
+                        'download_url': download_url
+                    })
+        except Exception as yt_error:
+            # Eğer üstteki proxy o an yavaşsa veya takıldıysa, proxysiz doğrudan temiz bir ayarla son kez dene
+            fallback_opts = {
+                'format': 'bestaudio/best',
+                'quiet': True,
+                'no_warnings': True,
+                'skip_download': True,
+                'nocheckcertificate': True
+            }
+            with yt_dlp.YoutubeDL(fallback_opts) as ydl_fallback:
+                info = ydl_fallback.extract_info(video_url, download=False)
+                download_url = info.get('url')
+                video_title = info.get('title', 'Şarkı')
+                
+                if download_url:
+                    return jsonify({
+                        'status': 'success',
+                        'message': f'"{video_title}" başarıyla dönüştürüldü!',
+                        'download_url': download_url
+                    })
+                raise yt_error
 
-        return jsonify({'status': 'error', 'message': 'YouTube bot koruması nedeniyle şu an bağlantı kurulamadı. Lütfen az sonra tekrar deneyin.'}), 500
+        return jsonify({'status': 'error', 'message': 'İndirme bağlantısı çözülemedi.'}), 500
 
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Dönüştürme Hatası: {str(e)}'}), 500
