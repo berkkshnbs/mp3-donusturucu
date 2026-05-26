@@ -16,34 +16,39 @@ def convert_video():
     if not video_url:
         return jsonify({'status': 'error', 'message': 'Lütfen geçerli bir URL girin.'}), 400
 
-    # Ücretsiz ve harika bir YouTube MP3 API'si kullanıyoruz
-    # Bu API, verdiğimiz linki doğrudan MP3 indirme bağlantısına dönüştürür.
-    api_url = f"https://api.vexd.workers.dev/youtube?url={video_url}"
+    # Güncel ve sorunsuz çalışan Cobalt API'si
+    api_url = "https://api.cobalt.tools/"
+    
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "url": video_url,
+        "isAudioOnly": True,
+        "audioFormat": "mp3",
+        "vCodec": "h264"
+    }
 
     try:
-        # API'ye istek atıyoruz
-        response = requests.get(api_url, timeout=15)
+        response = requests.post(api_url, json=payload, headers=headers, timeout=15)
         result = response.json()
         
-        # API'den gelen cevaba göre indirme linkini alıyoruz
-        if response.status_code == 200 and 'download_url' in result:
-            mp3_link = result['download_url']
-            video_title = result.get('title', 'Şarkı')
-            
+        if response.status_code == 200 and 'url' in result:
+            mp3_link = result['url']
             return jsonify({
                 'status': 'success',
-                'message': f'"{video_title}" başarıyla dönüştürüldü!',
-                'download_url': mp3_link  # Ön yüze hazır indirme linkini gönderiyoruz
+                'message': 'Video başarıyla MP3 formatına dönüştürüldü!',
+                'download_url': mp3_link
             })
         else:
-            return jsonify({'status': 'error', 'message': 'API videoyu dönüştüremedi. Lütfen başka bir link deneyin.'}), 500
+            error_msg = result.get('text', 'API videoyu dönüştüremedi.')
+            return jsonify({'status': 'error', 'message': f'Dönüştürme başarısız: {error_msg}'}), 500
 
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Sunucu hatası: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
-    if __name__ == '__main__':
-        # Render portu otomatik atar, localde ise 5000 portunda çalışır
-        port = int(os.environ.get('PORT', 5000))
-        app.run(host='0.0.0.0', port=port)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
