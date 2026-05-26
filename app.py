@@ -16,12 +16,10 @@ def convert_video():
     if not video_url:
         return jsonify({'status': 'error', 'message': 'Lütfen geçerli bir URL girin.'}), 400
 
-    # B PLANINDAYIZ: Kurşun geçirmez yeni indirme API'si
     api_url = "https://all-in-one-downloader.p.rapidapi.com/v1/social/autolink"
     
-    # Bu API doğrudan çalışmak için bu başlıkları (headers) ister
     headers = {
-        "x-rapidapi-key": "6ca3161c77msh699042b44ec6576p170884jsn332da1e793cb", # Herkese açık ücretsiz geçici anahtar
+        "x-rapidapi-key": "6ca3161c77msh699042b44ec6576p170884jsn332da1e793cb",
         "x-rapidapi-host": "all-in-one-downloader.p.rapidapi.com",
         "Content-Type": "application/json"
     }
@@ -34,28 +32,31 @@ def convert_video():
         response = requests.post(api_url, json=payload, headers=headers, timeout=15)
         result = response.json()
         
-        # API'den gelen veriyi kontrol ediyoruz
-        if response.status_code == 200 and 'links' in result:
-            # Gelen linklerin içinden ses (audio/mp3) olanı cımbızla çekiyoruz
+        if response.status_code == 200 and 'links' in result and len(result['links']) > 0:
             mp3_link = None
+            
+            # 1. Aşama: Gerçekten ses/mp3 olan bir link var mı diye agresif bir arama yapıyoruz
             for link in result['links']:
-                if link.get('type') == 'audio' or 'mp3' in link.get('format', '').lower():
+                link_type = str(link.get('type', '')).lower()
+                link_format = str(link.get('format', '')).lower()
+                
+                if 'audio' in link_type or 'mp3' in link_format or 'm4a' in link_format:
                     mp3_link = link.get('url')
                     break
             
-            # Eğer özel olarak ses bulamadıysa, listenin ilk sırasındaki indirme linkini verelim
-            if not mp3_link and len(result['links']) > 0:
+            # 2. Aşama: Eğer ses bulamadıysa, inat etme! API'nin bulduğu EN İLK indirme linkini ver (Video bile olsa indirsin)
+            if not mp3_link:
                 mp3_link = result['links'][0].get('url')
 
             if mp3_link:
-                video_title = result.get('title', 'Şarkı')
+                video_title = result.get('title', 'Başarılı')
                 return jsonify({
                     'status': 'success',
-                    'message': f'"{video_title}" başarıyla dönüştürüldü!',
+                    'message': f'"{video_title}" bağlantısı hazırlandı!',
                     'download_url': mp3_link
                 })
             
-        return jsonify({'status': 'error', 'message': 'API videodan ses dosyası ayrıştıramadı.'}), 500
+        return jsonify({'status': 'error', 'message': 'API bu video için hiçbir indirme bağlantısı üretemedi.'}), 500
 
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Sunucu hatası: {str(e)}'}), 500
